@@ -1,6 +1,8 @@
-package helpers
+package rag
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/url"
 	"strings"
 )
@@ -14,4 +16,9 @@ func Truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + " …"
+}
+
+func HashText(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
 }

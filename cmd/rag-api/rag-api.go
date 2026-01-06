@@ -8,10 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"rag/util/embedder"
-	"rag/util/env"
-	"rag/util/helpers"
+	"rag"
 	"strings"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
@@ -32,7 +29,7 @@ type Chunk struct {
 }
 
 func main() {
-	chDsn := env.GetEnv("CH_DSN", "clickhouse://default:MsTac%402001@192.168.15.44:9000/wsav3")
+	chDsn := rag.GetEnv("CH_DSN", "clickhouse://default:MsTac%402001@192.168.15.44:9000/wsav3")
 
 	db, err := sql.Open("clickhouse", chDsn)
 	if err != nil {
@@ -50,7 +47,7 @@ func main() {
 		}
 
 		// 1) 调 embedder 得到 query 向量
-		qvec, err := embedder.Embed(req.Question)
+		qvec, err := rag.Embed(req.Question)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -85,7 +82,7 @@ func main() {
 		// 3) 生成可复现链接（示例：把窗口 SQL encode 入 URL）
 		var links []string
 		for _, c := range chunks {
-			sqlURL := fmt.Sprintf("/explore?sql=%s", helpers.UrlEncode(fmt.Sprintf(
+			sqlURL := fmt.Sprintf("/explore?sql=%s", rag.UrlEncode(fmt.Sprintf(
 				"SELECT * FROM events_dns_v WHERE ts BETWEEN parseDateTimeBestEffort('%s') AND parseDateTimeBestEffort('%s') LIMIT 200",
 				c.WinStart, c.WinEnd,
 			)))
@@ -98,7 +95,7 @@ func main() {
 			"prompt":    req.Question,
 			"evidences": topTexts(chunks, 4),
 		}
-		draft, err := embedder.Generate(genBody)
+		draft, err := rag.Generate(genBody)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -119,21 +116,13 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// --- helpers ---
-func getenv(k, v string) string {
-	if s := os.Getenv(k); s != "" {
-		return s
-	}
-	return v
-}
-
 func topTexts(chs []Chunk, n int) []string {
 	if n > len(chs) {
 		n = len(chs)
 	}
 	out := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		out = append(out, fmt.Sprintf("%s\n%s", chs[i].Title, helpers.Truncate(chs[i].Text, 800)))
+		out = append(out, fmt.Sprintf("%s\n%s", chs[i].Title, rag.Truncate(chs[i].Text, 800)))
 	}
 	return out
 }
@@ -145,9 +134,7 @@ func whereLike(filters []string) string {
 	// 简化：对 qname/文本 LIKE 过滤
 	clauses := make([]string, 0, len(filters))
 	for _, f := range filters {
-		clauses = append(clauses, fmt.Sprintf("text ILIKE '%%%s%%'", helpers.EscapeLike(f)))
+		clauses = append(clauses, fmt.Sprintf("text ILIKE '%%%s%%'", rag.EscapeLike(f)))
 	}
 	return "WHERE " + strings.Join(clauses, " AND ")
 }
-
-// 省略：bytesReader、urlEncode、escapeLike、truncate 等工具函数实现

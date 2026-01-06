@@ -1,16 +1,15 @@
-package embedder
+package rag
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"rag/util/env"
 )
 
 var (
-	embURL = env.GetEnv("EMBED_URL", "http://192.168.12.181:8081/embed")
-	genURL = env.GetEnv("GEN_URL", "http://192.168.12.181:8081/generate")
+	embURL = GetEnv("EMBED_URL", "http://192.168.12.181:8081/embed")
+	genURL = GetEnv("GEN_URL", "http://192.168.12.181:8081/generate")
 )
 
 func Embed(text string) ([]float32, error) {
